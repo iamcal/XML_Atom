@@ -16,6 +16,7 @@ class XML_Atom extends XML_Parser
     var $channel = array();
     var $items = array();
     var $item = array();
+    var $insideEntry = 0;
 
 
     function XML_Atom($handle = '')
@@ -39,9 +40,18 @@ class XML_Atom extends XML_Parser
                 $this->insideTag = $element;
                 break;
 
+            case 'CONTENT':
+            case 'SUMMARY':
+                if ($this->insideTag == 'ENTRY'){
+                    $this->insideEntry = 1;
+                }
+       	        break;
+
             case 'LINK':
                 if ($this->insideTag == 'ENTRY'){
-                    $this->_add('item', 'link', $attribs[HREF]);
+                    if ($attribs[REL]=='alternate' || !$attribs[REL]){
+                        $this->_add('item', 'link', $attribs[HREF]);
+                    }
                 }
                 break;
 
@@ -60,6 +70,10 @@ class XML_Atom extends XML_Parser
         if ($element == 'ENTRY') {
             $this->items[] = $this->item;
             $this->item = '';
+        }
+
+        if ($element == 'CONTENT' || $element == 'SUMMARY') {
+            $this->insideEntry = 0;
         }
 
         $this->activeTag = '';
@@ -86,13 +100,19 @@ class XML_Atom extends XML_Parser
                         break;
 
                     case 'CONTENT':
+                    case 'SUMMARY':
                         $this->_add('item', 'description', $cdata);
                         break;
                 }
                 break;
 
 
-        }      
+        }   
+
+        if ($this->insideEntry){
+            $this->_add('item', 'description', $cdata);
+        }
+   
     }
 
     function defaultHandler($parser, $cdata)
